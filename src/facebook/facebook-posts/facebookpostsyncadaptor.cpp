@@ -39,7 +39,7 @@
 
 #define SOCIALD_FACEBOOK_POSTS_ID_PREFIX QLatin1String("facebook-posts-")
 #define SOCIALD_FACEBOOK_POSTS_GROUPNAME QLatin1String("facebook")
-#define FACEBOOK_AVATAR QLatin1String("https://graph.facebook.com/%1/picture?width=200&height=200")
+#define FACEBOOK_AVATAR QLatin1String("https://graph.facebook.com/v2.2/%1/picture?width=200&height=200")
 
 
 static const char *FQL_QUERY = "{"\
@@ -137,7 +137,7 @@ void FacebookPostSyncAdaptor::requestMe(int accountId, const QString &accessToke
     QList<QPair<QString, QString> > queryItems;
     queryItems.append(QPair<QString, QString>(QString(QLatin1String("access_token")), accessToken));
     queryItems.append(QPair<QString, QString>(QString(QLatin1String("fields")), QLatin1String("id")));
-    QUrl url(QLatin1String("https://graph.facebook.com/me"));
+    QUrl url(QLatin1String("https://graph.facebook.com/v2.2/me"));
     QUrlQuery query(url);
     query.setQueryItems(queryItems);
     url.setQuery(query);
@@ -160,6 +160,8 @@ void FacebookPostSyncAdaptor::requestMe(int accountId, const QString &accessToke
 
 void FacebookPostSyncAdaptor::requestPosts(int accountId, const QString &accessToken)
 {
+    return;
+
     // We query only the most recent QUERY_SIZE posts.  We set a long time limit.
     QList<QPair<QString, QString> > queryItems;
     queryItems.append(QPair<QString, QString>(QString(QLatin1String("access_token")), accessToken));

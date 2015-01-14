@@ -49,6 +49,7 @@ protected: // implementing FacebookDataTypeSyncAdaptor interface
 private:
     void requestEvents(int accountId, const QString &accessToken,
                        const QString &until = QString(), const QString &pagingToken = QString());
+    void setNextEdge();
 
 private Q_SLOTS:
     void finishedHandler();
@@ -58,6 +59,7 @@ private:
     mKCal::ExtendedStorage::Ptr m_storage;
     FacebookCalendarDatabase m_db;
     bool m_storageNeedsSave;
+    QString m_edge;
 };
 
 #endif // FACEBOOKCALENDARSYNCADAPTOR_H

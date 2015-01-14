@@ -167,12 +167,13 @@ void FacebookCalendarSyncAdaptor::purgeDataForOldAccount(int oldId, SocialNetwor
 void FacebookCalendarSyncAdaptor::beginSync(int accountId, const QString &accessToken)
 {
     SOCIALD_LOG_DEBUG("beginning Calendar sync for Facebook account" << accountId);
+    m_edge = QStringLiteral("created");
     requestEvents(accountId, accessToken);
 }
 
 void FacebookCalendarSyncAdaptor::requestEvents(int accountId, const QString &accessToken,
-                                                    const QString &until,
-                                                    const QString &pagingToken)
+                                                const QString &until,
+                                                const QString &pagingToken)
 {
     // TODO: continuation requests need these two.  if exists, also set limit = 5000.
     // if not set, set "since" to the timestamp value.
@@ -185,24 +186,31 @@ void FacebookCalendarSyncAdaptor::requestEvents(int accountId, const QString &ac
     uint startTime = QDateTime::currentDateTimeUtc().addDays(sinceSpan * -1).toTime_t();
     QList<QPair<QString, QString> > queryItems;
     queryItems.append(QPair<QString, QString>(QString(QLatin1String("access_token")), accessToken));
-    QString fql = QString(QLatin1String("SELECT eid, name, description, is_date_only, location, "\
+    queryItems.append(QPair<QString, QString>(QString(QLatin1String("since")), QString::number(startTime)));
+
+/*    QString fql = QString(QLatin1String("SELECT eid, name, description, is_date_only, location, "\
                                         "start_time, end_time, timezone, host FROM event WHERE "\
                                         "eid IN (SELECT eid FROM event_member WHERE uid = me() "\
                                         "AND rsvp_status != 'declined' AND start_time > %1)")).arg(startTime);
     // We need support for some paging system
     // maybe by adding v ?
-    queryItems.append(qMakePair<QString, QString>(QString(QLatin1String("q")), fql));;
+    queryItems.append(qMakePair<QString, QString>(QString(QLatin1String("q")), fql));; */
 
+    qDebug("QUERY FACEBOOK CALENDAR EVENTS VIA 2.2");
 
-    QUrl url(QLatin1String("https://graph.facebook.com/fql"));
+    QUrl url(graphAPI() + QLatin1String("/me/events/") + m_edge);
     QUrlQuery query(url);
     query.setQueryItems(queryItems);
     url.setQuery(query);
     QNetworkReply *reply = m_networkAccessManager->get(QNetworkRequest(url));
 
+    qDebug("EVENTS URL: %s", qPrintable(url.toString()));
+
     if (reply) {
         reply->setProperty("accountId", accountId);
         reply->setProperty("accessToken", accessToken);
+        reply->setProperty("until", until);
+        reply->setProperty("pagingToken", pagingToken);
         connect(reply, SIGNAL(error(QNetworkReply::NetworkError)),
                 this, SLOT(errorHandler(QNetworkReply::NetworkError)));
         connect(reply, SIGNAL(sslErrors(QList<QSslError>)),
@@ -210,7 +218,9 @@ void FacebookCalendarSyncAdaptor::requestEvents(int accountId, const QString &ac
         connect(reply, SIGNAL(finished()), this, SLOT(finishedHandler()));
 
         // we're requesting data.  Increment the semaphore so that we know we're still busy.
-        incrementSemaphore(accountId);
+        if (m_edge == QStringLiteral("created")) {
+            incrementSemaphore(accountId);
+        }
         setupReplyTimeout(accountId, reply);
     } else {
         SOCIALD_LOG_ERROR("unable to request events from Facebook account" << accountId);
@@ -221,12 +231,18 @@ void FacebookCalendarSyncAdaptor::finishedHandler()
 {
     QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
     int accountId = reply->property("accountId").toInt();
+    QString accessToken = reply->property("accessToken").toString();
+    QString until = reply->property("until").toString();
+    QString pagingToken = reply->property("pagingToken").toString();
     QByteArray replyData = reply->readAll();
     bool isError = reply->property("isError").toBool();
 
     disconnect(reply);
     reply->deleteLater();
     removeReplyTimeout(accountId, reply);
+
+    qDebug("CAL QUERY: IS ERROR: %d", isError);
+    qDebug("ANTTI: FACEBOOK EVENTS REPLY: %s", qPrintable(QString(replyData)));
 
     bool ok = false;
     QJsonObject parsed = parseJsonObjectReplyData(replyData, &ok);
@@ -427,6 +443,25 @@ void FacebookCalendarSyncAdaptor::finishedHandler()
                           << accountId << ", got:" << QString::fromLatin1(replyData.constData()));
     }
 
-    // we're finished this request.  Decrement our busy semaphore.
-    decrementSemaphore(accountId);
+    setNextEdge();
+    if (!m_edge.isEmpty()) {
+        qDebug("NEXT ROUND FOR: %s", qPrintable(m_edge));
+        requestEvents(accountId, accessToken, until, pagingToken);
+    } else {
+        // we're finished this request.  Decrement our busy semaphore.
+        decrementSemaphore(accountId);
+    }
+}
+
+void FacebookCalendarSyncAdaptor::setNextEdge()
+{
+    if (m_edge == QStringLiteral("created")) {
+        m_edge = QStringLiteral("attending");
+    } else if (m_edge == QStringLiteral("attending")) {
+        m_edge = QStringLiteral("maybe");
+    } else if (m_edge == QStringLiteral("maybe")) {
+        m_edge = QStringLiteral("not_replied");
+    } else {
+        m_edge = "";
+    }
 }

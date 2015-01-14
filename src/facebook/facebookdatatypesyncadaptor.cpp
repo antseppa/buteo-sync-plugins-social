@@ -252,6 +252,8 @@ void FacebookDataTypeSyncAdaptor::signOnResponse(const SignOn::SessionData &resp
         SOCIALD_LOG_INFO("signon response for account with id" << accountId << "contained no access token");
     }
 
+    m_graphAPI = account->value(QStringLiteral("graph_api/Host")).toString();
+
     session->disconnect(this);
     identity->destroySession(session);
     identity->deleteLater();

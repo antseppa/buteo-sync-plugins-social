@@ -109,6 +109,8 @@ void FacebookImageSyncAdaptor::requestData(int accountId,
                                            const QString &fbUserId,
                                            const QString &fbAlbumId)
 {
+    qDebug("ANTTI: IMAGES QUERY FOR 2.2");
+
     QUrl url;
     if (!continuationUrl.isEmpty()) {
         // fetch the next page.
@@ -117,10 +119,10 @@ void FacebookImageSyncAdaptor::requestData(int accountId,
         // build the request, depending on whether we're fetching albums or images.
         if (fbAlbumId.isEmpty()) {
             // fetching all albums from the me user.
-            url = QUrl(QLatin1String("https://graph.facebook.com/me/albums"));
+            url = QUrl(graphAPI() + QLatin1String("/me/albums"));
         } else {
             // fetching images from a particular album.
-            url = QUrl(QString(QLatin1String("https://graph.facebook.com/%1/photos")).arg(fbAlbumId));
+            url = QUrl(graphAPI() + QString(QLatin1String("/%1/photos")).arg(fbAlbumId));
         }
     }
 
@@ -160,6 +162,8 @@ void FacebookImageSyncAdaptor::requestData(int accountId,
 
 void FacebookImageSyncAdaptor::albumsFinishedHandler()
 {
+    qDebug("ANTTI: ALBUMS FINISHED HANDLER FOR 2.2");
+
     QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
     bool isError = reply->property("isError").toBool();
     int accountId = reply->property("accountId").toInt();
@@ -255,6 +259,8 @@ void FacebookImageSyncAdaptor::albumsFinishedHandler()
 
 void FacebookImageSyncAdaptor::imagesFinishedHandler()
 {
+    qDebug("ANTTI: IMAGES FINISHED HANDLER FOR 2.2");
+
     QNetworkReply *reply = qobject_cast<QNetworkReply*>(sender());
     bool isError = reply->property("isError").toBool();
     int accountId = reply->property("accountId").toInt();
@@ -302,7 +308,7 @@ void FacebookImageSyncAdaptor::imagesFinishedHandler()
         // is too small so this is sort of best guess what sizes FB might returns. We can't
         // also hardcode the exact sizes here, because we can't be sure that certains sizes
         // will stay for ever.
-        // TODO: we can use https://graph.facebook.com/object_id/picture?type=large
+        // TODO: we can use https://graph.facebook.com/v2.2/object_id/picture?type=large
         QJsonArray images = imageObject.value(QLatin1String("images")).toArray();
         foreach (const QJsonValue &imageValue, images) {
             QJsonObject image = imageValue.toObject();
@@ -380,7 +386,7 @@ void FacebookImageSyncAdaptor::possiblyAddNewUser(const QString &fbUserId, int a
     // We need to add the user. We call Facebook to get the informations that we
     // need and then add it to the database
     // me?fields=updated_time,name,picture
-    QUrl url(QLatin1String("https://graph.facebook.com/me"));
+    QUrl url(graphAPI() + QLatin1String("/me"));
     QList<QPair<QString, QString> > queryItems;
     queryItems.append(QPair<QString, QString>(QString(QLatin1String("access_token")), accessToken));
     queryItems.append(QPair<QString, QString>(QString(QLatin1String("fields")),

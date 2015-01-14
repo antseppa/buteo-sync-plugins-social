@@ -214,6 +214,8 @@ void FacebookContactSyncAdaptor::requestData(int accountId, const QString &acces
                                              const QString &continuationRequest,
                                              const QDateTime &syncTimestamp)
 {
+    return;
+
     QUrl url;
     QList<QPair<QString, QString> > queryItems;
     queryItems.append(QPair<QString, QString>(QString(QLatin1String("access_token")), accessToken));
@@ -235,7 +237,7 @@ void FacebookContactSyncAdaptor::requestData(int accountId, const QString &acces
         }
     } else {
         // beginning a new sync via me/friends request.
-        url = QUrl(QString(QLatin1String("https://graph.facebook.com/me/friends")));
+        url = QUrl(graphAPI() + QLatin1String("/me/friends"));
         queryItems.append(QPair<QString, QString>(QString(QLatin1String("limit")), QLatin1String("200")));
         queryItems.append(QPair<QString, QString>(QString(QLatin1String("fields")),
                                                   QLatin1String(WHICH_FIELDS)));
